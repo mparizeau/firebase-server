@@ -290,6 +290,10 @@ FirebaseServer.prototype = {
 			}
 		}
 
+		function handleOnDisconnect(requestId) {
+			send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
+		}
+		
 		function accumulateFrames(data){
 			//Accumulate buffer until websocket frame is complete
 			if (typeof ws.frameBuffer == 'undefined'){
@@ -334,6 +338,9 @@ FirebaseServer.prototype = {
 				}
 				if (parsed.d.a === 'auth' || parsed.d.a === 'gauth') {
 					handleAuth(requestId, parsed.d.b.cred);
+				}
+				if (parsed.d.a === 'om') {
+					handleOnDisconnect(requestId);
 				}
 			}
 		}.bind(this));
