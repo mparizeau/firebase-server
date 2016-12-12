@@ -167,7 +167,21 @@ FirebaseServer.prototype = {
 			}
 			return Promise.resolve(true);
 		}
-
+		
+		function tryPatch(requestId, path, fbRef, newData) {
+			if (server._ruleset) {
+				return ruleSnapshot(fbRef).then(function (dataSnap) {
+					var result = server._ruleset.tryPatch(path, dataSnap, newData, authData());
+					if (!result.allowed) {
+						permissionDenied(requestId);
+						throw new Error('Permission denied for client to write to ' + path + ': ' + result.info);
+					}
+					return true;
+				});
+			}
+			return Promise.resolve(true);
+		}
+		
 		function handleListen(requestId, normalizedPath, fbRef) {
 			var path = normalizedPath.path;
 			_log('Client listen ' + path);
@@ -197,10 +211,7 @@ FirebaseServer.prototype = {
 			var checkPermission = Promise.resolve(true);
 
 			if (server._ruleset) {
-				checkPermission = exportData(fbRef).then(function (currentData) {
-					var mergedData = _.assign(currentData, newData);
-					return tryWrite(requestId, path, fbRef, mergedData);
-				});
+				checkPermission = tryPatch(requestId, path, fbRef, newData);
 			}
 
 			checkPermission.then(function () {
