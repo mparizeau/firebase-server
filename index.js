@@ -124,11 +124,13 @@ FirebaseServer.prototype = {
 			send({d: {r: requestId, b: {s: 'permission_denied', d: 'Permission denied'}}, t: 'd'});
 		}
 
-		function replaceServerTimestamp(data) {
+		function replaceServerTimestamp(data, nowValue) {
 			if (_.isEqual(data, firebase.database.ServerValue.TIMESTAMP)) {
-				return server._clock();
+				return nowValue || server._clock();
 			} else if (_.isObject(data)) {
-				return _.mapValues(data, replaceServerTimestamp);
+				return _.mapValues(data, function(d) {
+					return replaceServerTimestamp(d, nowValue);
+				});
 			} else {
 				return data;
 			}
@@ -168,10 +170,10 @@ FirebaseServer.prototype = {
 			return Promise.resolve(true);
 		}
 		
-		function tryPatch(requestId, path, fbRef, newData) {
+		function tryPatch(requestId, path, fbRef, newData, now) {
 			if (server._ruleset) {
 				return ruleSnapshot(fbRef).then(function (dataSnap) {
-					var result = server._ruleset.tryPatch(path, dataSnap, newData, authData());
+					var result = server._ruleset.tryPatch(path, dataSnap, newData, authData(), false, false, false, now);
 					if (!result.allowed) {
 						permissionDenied(requestId);
 						throw new Error('Permission denied for client to write to ' + path + ': ' + result.info);
@@ -206,12 +208,18 @@ FirebaseServer.prototype = {
 			var path = normalizedPath.path;
 			_log('Client update ' + path);
 
-			newData = replaceServerTimestamp(newData);
+			// Set the "now" value that will be used for all of the rules
+			// checking as this value will be set inside the new data
+			// and needs to be consistent
+			// If we keep calling Date.now() when checking rules it will
+			// be slightly off
+			var now = server._clock();
+			newData = replaceServerTimestamp(newData, now);
 
 			var checkPermission = Promise.resolve(true);
 
 			if (server._ruleset) {
-				checkPermission = tryPatch(requestId, path, fbRef, newData);
+				checkPermission = tryPatch(requestId, path, fbRef, newData, now);
 			}
 
 			checkPermission.then(function () {
