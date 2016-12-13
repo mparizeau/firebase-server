@@ -16,6 +16,7 @@ var TokenValidator = require('./lib/token-validator');
 var Promise = require('any-promise');
 var firebase = require('firebase');
 var _log = require('debug')('firebase-server');
+var _logRuleFail = require('debug')('firebase-server:rule-fail');
 
 // In order to produce new Firebase clients that do not conflict with existing
 // instances of the Firebase client, each one must have a unique name.
@@ -201,7 +202,7 @@ FirebaseServer.prototype = {
 						}
 					});
 				})
-				.catch(_log);
+				.catch(_logRuleFail);
 		}
 
 		function handleUpdate(requestId, normalizedPath, fbRef, newData) {
@@ -225,7 +226,7 @@ FirebaseServer.prototype = {
 			checkPermission.then(function () {
 				fbRef.update(newData);
 				send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
-			}).catch(_log);
+			}).catch(_logRuleFail);
 		}
 
 		function handleSet(requestId, normalizedPath, fbRef, newData, hash) {
@@ -273,7 +274,7 @@ FirebaseServer.prototype = {
 					pushData(path, snap.exportVal());
 					send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
 				});
-			}).catch(_log);
+			}).catch(_logRuleFail);
 		}
 
 		function handleAuth(requestId, credential) {
