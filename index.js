@@ -84,6 +84,7 @@ function FirebaseServer(port, name, data) {
 
 	this._clock = new TestableClock();
 	this._tokenValidator = new TokenValidator(null, this._clock);
+	this._ruleFailureLoggingEnabled = true;
 
 	this._wss.on('connection', this.handleConnection.bind(this));
 	_log('Listening for connections on port ' + port);
@@ -141,6 +142,12 @@ FirebaseServer.prototype = {
 			return exportData(fbRef.root).then(function (exportVal) {
 				return new RuleDataSnapshot(RuleDataSnapshot.convert(exportVal));
 			});
+		}
+		
+		function logRuleFailure(error) {
+			if (server._ruleFailureLoggingEnabled) {
+				_logRuleFail(error);
+			}
 		}
 
 		function tryRead(requestId, path, fbRef) {
@@ -202,7 +209,7 @@ FirebaseServer.prototype = {
 						}
 					});
 				})
-				.catch(_logRuleFail);
+				.catch(logRuleFailure);
 		}
 
 		function handleUpdate(requestId, normalizedPath, fbRef, newData) {
@@ -226,7 +233,7 @@ FirebaseServer.prototype = {
 			checkPermission.then(function () {
 				fbRef.update(newData);
 				send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
-			}).catch(_logRuleFail);
+			}).catch(logRuleFailure);
 		}
 
 		function handleSet(requestId, normalizedPath, fbRef, newData, hash) {
@@ -274,7 +281,7 @@ FirebaseServer.prototype = {
 					pushData(path, snap.exportVal());
 					send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
 				});
-			}).catch(_logRuleFail);
+			}).catch(logRuleFailure);
 		}
 
 		function handleAuth(requestId, credential) {
@@ -387,6 +394,10 @@ FirebaseServer.prototype = {
 	setAuthSecret: function (newSecret) {
 		this._authSecret = newSecret;
 		this._tokenValidator.setSecret(newSecret);
+	},
+	
+	enableRuleFailureLogging: function(enable) {
+		this._ruleFailureLoggingEnabled = enable;
 	}
 };
 
