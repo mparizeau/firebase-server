@@ -146,6 +146,7 @@ FirebaseServer.prototype = {
 		
 		function logRuleFailure(error) {
 			if (server._ruleFailureLoggingEnabled) {
+				_logRuleFail('Auth data:', authData());
 				_logRuleFail(error);
 			}
 		}
