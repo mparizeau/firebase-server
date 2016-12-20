@@ -165,10 +165,10 @@ FirebaseServer.prototype = {
 			return Promise.resolve(true);
 		}
 
-		function tryWrite(requestId, path, fbRef, newData) {
+		function tryWrite(requestId, path, fbRef, newData, now) {
 			if (server._ruleset) {
 				return ruleSnapshot(fbRef).then(function (dataSnap) {
-					var result = server._ruleset.tryWrite(path, dataSnap, newData, authData());
+					var result = server._ruleset.tryWrite(path, dataSnap, newData, authData(), false, false, false, now);
 					if (!result.allowed) {
 						permissionDenied(requestId);
 						throw new Error('Permission denied for client to write to ' + path + ': ' + result.info);
@@ -243,7 +243,8 @@ FirebaseServer.prototype = {
 			var progress = Promise.resolve(true);
 			var path = normalizedPath.path;
 
-			newData = replaceServerTimestamp(newData);
+			var now = server._clock();
+			newData = replaceServerTimestamp(newData, now);
 
 			if (normalizedPath.isPriorityPath) {
 				progress = exportData(fbRef).then(function (parentData) {
@@ -260,7 +261,7 @@ FirebaseServer.prototype = {
 			}
 
 			progress = progress.then(function () {
-				return tryWrite(requestId, path, fbRef, newData);
+				return tryWrite(requestId, path, fbRef, newData, now);
 			});
 
 			if (typeof hash !== 'undefined') {
