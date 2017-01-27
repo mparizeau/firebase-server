@@ -85,6 +85,7 @@ function FirebaseServer(port, name, data) {
 	this._clock = new TestableClock();
 	this._tokenValidator = new TokenValidator(null, this._clock);
 	this._ruleFailureLoggingEnabled = true;
+	this._verboseFailureLogging = false;
 
 	this._wss.on('connection', this.handleConnection.bind(this));
 	_log('Listening for connections on port ' + port);
@@ -143,7 +144,7 @@ FirebaseServer.prototype = {
 				return new RuleDataSnapshot(RuleDataSnapshot.convert(exportVal));
 			});
 		}
-		
+
 		function logRuleFailure(error) {
 			if (server._ruleFailureLoggingEnabled) {
 				_logRuleFail('Auth data:', authData());
@@ -157,7 +158,8 @@ FirebaseServer.prototype = {
 					var result = server._ruleset.tryRead(path, dataSnap, authData());
 					if (!result.allowed) {
 						permissionDenied(requestId);
-						throw new Error('Permission denied for client to read from ' + path + ': ' + result.info);
+						var info = server._verboseFailureLogging ? result.info : result.shortInfo;
+						throw new Error('Permission denied for client to read from ' + path + ':\n' + info);
 					}
 					return true;
 				});
@@ -171,28 +173,30 @@ FirebaseServer.prototype = {
 					var result = server._ruleset.tryWrite(path, dataSnap, newData, authData(), false, false, false, now);
 					if (!result.allowed) {
 						permissionDenied(requestId);
-						throw new Error('Permission denied for client to write to ' + path + ': ' + result.info);
+						var info = server._verboseFailureLogging ? result.info : result.shortInfo;
+						throw new Error('Permission denied for client to write to ' + path + ':\n' + info);
 					}
 					return true;
 				});
 			}
 			return Promise.resolve(true);
 		}
-		
+
 		function tryPatch(requestId, path, fbRef, newData, now) {
 			if (server._ruleset) {
 				return ruleSnapshot(fbRef).then(function (dataSnap) {
 					var result = server._ruleset.tryPatch(path, dataSnap, newData, authData(), false, false, false, now);
 					if (!result.allowed) {
 						permissionDenied(requestId);
-						throw new Error('Permission denied for client to write to ' + path + ': ' + result.info);
+						var info = server._verboseFailureLogging ? result.info : result.shortInfo;
+						throw new Error('Permission denied for client to write to ' + path + ':\n' + info);
 					}
 					return true;
 				});
 			}
 			return Promise.resolve(true);
 		}
-		
+
 		function handleListen(requestId, normalizedPath, fbRef) {
 			var path = normalizedPath.path;
 			_log('Client listen ' + path);
@@ -303,7 +307,7 @@ FirebaseServer.prototype = {
 		function handleOnDisconnect(requestId) {
 			send({d: {r: requestId, b: {s: 'ok', d: {}}}, t: 'd'});
 		}
-		
+
 		function accumulateFrames(data){
 			//Accumulate buffer until websocket frame is complete
 			if (typeof ws.frameBuffer == 'undefined'){
@@ -397,9 +401,13 @@ FirebaseServer.prototype = {
 		this._authSecret = newSecret;
 		this._tokenValidator.setSecret(newSecret);
 	},
-	
+
 	enableRuleFailureLogging: function(enable) {
 		this._ruleFailureLoggingEnabled = enable;
+	},
+
+	useVerboseFailureLogging: function(value) {
+		this._verboseFailureLogging = value;
 	}
 };
 
