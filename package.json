@@ -50,7 +50,7 @@
     "debug": "2.2.0",
     "jwt-simple": "0.3.1",
     "lodash": "3.10.1",
-    "targaryen": "git://github.com/mparizeau/targaryen.git#65e306e9bc39587a4305341ea98550169751728d",
+    "targaryen": "git://github.com/mparizeau/targaryen.git#b9163b4024a1691936a409b9384a00b360e637f9",
     "ws": "1.1.1"
   }
 }
